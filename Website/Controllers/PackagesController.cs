@@ -10,6 +10,7 @@ using System.Web.Mvc;
 using NuGet;
 using NuGetGallery.Helpers;
 using NuGetGallery.ViewModels.PackagePart;
+using NuGetGallery.FileAsyncUpload;
 using PoliteCaptcha;
 
 namespace NuGetGallery
@@ -47,6 +48,21 @@ namespace NuGetGallery
             this.autoCuratedPackageCmd = autoCuratedPackageCmd;
             this.nugetExeDownloaderSvc = nugetExeDownloaderSvc;
             this.config = config;
+        }
+
+        [Authorize]
+        [OutputCache(NoStore = true, Duration = 0, VaryByParam = "None")]
+        public virtual ActionResult UploadPackageProgress()
+        {
+            string username = GetIdentity().Name;
+
+            AsyncFileUploadProgressDetails progress = FileUploadManager.GetProgressDetails(username);
+            if (progress == null)
+            {
+                return HttpNotFound();
+            }
+
+            return Json(progress, JsonRequestBehavior.AllowGet);
         }
 
         [Authorize]
@@ -98,6 +114,10 @@ namespace NuGetGallery
             {
                 ModelState.AddModelError(String.Empty, Strings.FailedToReadUploadFile);
                 return View();
+            }
+            finally
+            {
+                FileUploadManager.RemoveProgressDetails(currentUser.Username);
             }
 
             var packageRegistration = packageSvc.FindPackageRegistrationById(nuGetPackage.Id);

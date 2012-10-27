@@ -37,6 +37,11 @@ namespace NuGetGallery
                 MVC.Packages.UploadPackage());
 
             routes.MapRoute(
+                RouteName.UploadPackageProgress,
+                "packages/upload-progress",
+                MVC.Packages.UploadPackageProgress());
+
+            routes.MapRoute(
                 RouteName.VerifyPackage,
                 "packages/verify-upload",
                 MVC.Packages.VerifyPackage());
