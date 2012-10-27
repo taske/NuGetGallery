@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using NuGet;
+using NuGetGallery.FileAsyncUpload;
 
 namespace NuGetGallery
 {
@@ -9,8 +10,12 @@ namespace NuGetGallery
         
         Stream GetUploadFile(int userKey);
         
-        void SaveUploadFile(
-            int userKey,
-            Stream packageFileStream);
+        void SaveUploadFile(int userKey, Stream packageFileStream);
+
+        AsyncFileUploadProgressDetails GetProgressDetails(string userKey);
+
+        void RemoveProgressDetails(string key);
+
+        void SetProgressDetails(string key, AsyncFileUploadProgressDetails progressDetails);
     }
 }

@@ -1,41 +1,42 @@
-﻿using System.Runtime.Serialization;
-using System.Web.Script.Serialization;
+﻿using System.Web.Script.Serialization;
 
 namespace NuGetGallery.FileAsyncUpload
 {
     public class AsyncFileUploadProgressDetails
     {
-        internal AsyncFileUploadProgressDetails(int contentLength)
+        internal AsyncFileUploadProgressDetails(int totalBytes, int bytesRead, string fileName)
         {
-            ContentLength = contentLength;
+            TotalBytes = totalBytes;
+            BytesRead = bytesRead;
+            FileName = fileName;
         }
 
         [ScriptIgnore]
-        public int ContentLength
+        public int TotalBytes
         {
             get;
-            set;
+            private set;
         }
 
         [ScriptIgnore]
-        public int TotalBytesRead
+        public int BytesRead
         {
             get;
-            set;
+            private set;
+        }
+
+        public string FileName
+        {
+            get;
+            private set;
         }
 
         public int Progress
         {
             get
             {
-                return (int)((long)TotalBytesRead * 100 / ContentLength);
+                return (int)((long)BytesRead * 100 / TotalBytes);
             }
-        }
-
-        public string FileName
-        {
-            get;
-            set;
         }
 
         [ScriptIgnore]
@@ -43,7 +44,7 @@ namespace NuGetGallery.FileAsyncUpload
         {
             get
             {
-                return ContentLength - TotalBytesRead;
+                return TotalBytes - BytesRead;
             }
         }
     }

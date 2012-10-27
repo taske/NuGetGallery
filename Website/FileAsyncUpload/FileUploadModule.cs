@@ -2,23 +2,32 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Web;
+using Ninject;
 
 namespace NuGetGallery.FileAsyncUpload
 {
     public class AsyncFileUploadModule : IHttpModule
     {
+        private IUploadFileService _uploadFileService;
+
         public void Dispose()
         {
         }
 
         public void Init(HttpApplication application)
         {
-            application.PostAuthenticateRequest += PostAuthorizeRequest;
+            _uploadFileService = Container.Kernel.Get<IUploadFileService>();
+            Debug.Assert(_uploadFileService != null);
+
+            if (_uploadFileService != null)
+            {
+                application.PostAuthenticateRequest += PostAuthorizeRequest;
+            }
         }
 
         private void PostAuthorizeRequest(object sender, EventArgs e)
         {
-            HttpApplication app = sender as HttpApplication;
+            var app = sender as HttpApplication;
 
             if (!app.Context.User.Identity.IsAuthenticated)
             {
@@ -42,8 +51,8 @@ namespace NuGetGallery.FileAsyncUpload
             string boundary = "--" + contentType.Substring(boundaryIndex + 9);
             var requestParser = new FileUploadRequestParser(boundary, request.ContentEncoding);
 
-            var progress = new AsyncFileUploadProgressDetails(request.ContentLength);
-            FileUploadManager.SetProgressDetails(username, progress);
+            var progress = new AsyncFileUploadProgressDetails(request.ContentLength, 0, String.Empty);
+            _uploadFileService.SetProgressDetails(username, progress);
 
             if (request.ReadEntityBodyMode != ReadEntityBodyMode.None)
             {
@@ -53,26 +62,35 @@ namespace NuGetGallery.FileAsyncUpload
             Stream uploadStream = request.GetBufferedInputStream();
             Debug.Assert(uploadStream != null);
 
-            ReadStream(uploadStream, progress, requestParser);
+            ReadStream(uploadStream, username, progress, requestParser);
         }
 
-        private void ReadStream(Stream stream, AsyncFileUploadProgressDetails progress, FileUploadRequestParser parser)
+        private void ReadStream(
+            Stream stream, 
+            string userKey,
+            AsyncFileUploadProgressDetails progress, 
+            FileUploadRequestParser parser)
         {
             const int bufferSize = 1024 * 4; // in bytes
 
-            byte[] buffer = new byte[bufferSize];
+            var buffer = new byte[bufferSize];
             while (progress.BytesRemaining > 0)
             {
                 int bytesRead = stream.Read(buffer, 0, Math.Min(progress.BytesRemaining, bufferSize));
-                progress.TotalBytesRead = bytesRead == 0
-                                          ? progress.ContentLength
-                                          : (progress.TotalBytesRead + bytesRead);
+                int newBytesRead = bytesRead == 0
+                                    ? progress.TotalBytes
+                                    : (progress.BytesRead + bytesRead);
+
+                string newFileName = progress.FileName;
 
                 if (bytesRead > 0)
                 {
                     parser.ParseNext(buffer, bytesRead);
-                    progress.FileName = parser.CurrentFileName;
+                    newFileName = parser.CurrentFileName;
                 }
+
+                progress = new AsyncFileUploadProgressDetails(progress.TotalBytes, newBytesRead, newFileName);
+                _uploadFileService.SetProgressDetails(userKey, progress);
 
 #if DEBUG
                 // for demo purpose only
@@ -91,12 +109,12 @@ namespace NuGetGallery.FileAsyncUpload
 
             // not a multipart content type
             string contentType = context.Request.ContentType;
-            if (contentType == null || !contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+            if (!contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
 
-            if (contentType.IndexOf("boundary=") < 0)
+            if (contentType.IndexOf("boundary=", StringComparison.OrdinalIgnoreCase) < 0)
             {
                 return false;
             }

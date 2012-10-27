@@ -56,7 +56,7 @@ namespace NuGetGallery
         {
             string username = GetIdentity().Name;
 
-            AsyncFileUploadProgressDetails progress = FileUploadManager.GetProgressDetails(username);
+            AsyncFileUploadProgressDetails progress = uploadFileSvc.GetProgressDetails(username);
             if (progress == null)
             {
                 return HttpNotFound();
@@ -117,7 +117,7 @@ namespace NuGetGallery
             }
             finally
             {
-                FileUploadManager.RemoveProgressDetails(currentUser.Username);
+                uploadFileSvc.RemoveProgressDetails(currentUser.Username);
             }
 
             var packageRegistration = packageSvc.FindPackageRegistrationById(nuGetPackage.Id);

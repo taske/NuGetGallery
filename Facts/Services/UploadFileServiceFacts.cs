@@ -171,7 +171,7 @@ namespace NuGetGallery
             if (fakeFileStorageService == null)
                 fakeFileStorageService = new Mock<IFileStorageService>();
             
-            return new UploadFileService(fakeFileStorageService.Object);
+            return new UploadFileService(fakeFileStorageService.Object, new Mock<ICacheService>().Object);
         }
     }
 }
