@@ -1,11 +1,11 @@
 ﻿var AsyncFileUploadManager = new function () {
-    var _isWebkitBrowser = $.browser.webkit;
-    var _iframeId = '__fileUploadFrame';
-    var _pollingInterval = 200;
-    var _pingUrl;
+    var isWebkitBrowser = $.browser.webkit;
+    var iframeId = '__fileUploadFrame';
+    var pollingInterval = 200;
+    var pingUrl;
     
-    this.init = function (pingUrl, formId) {
-        _pingUrl = pingUrl;
+    this.init = function (progressUrl, fulljQueryUrl, formId) {
+        pingUrl = progressUrl;
 
         // attach the sumbit event to the form
         $('#' + formId).submit(function () {
@@ -13,8 +13,8 @@
             return false;
         });
 
-        if (_isWebkitBrowser) {
-            constructIframe();
+        if (isWebkitBrowser) {
+            constructIframe(fulljQueryUrl);
         }
     }
 
@@ -34,8 +34,8 @@
         if (totalFile > 0) {
             setProgressIndicator(0, 0, null);
 
-            if (_isWebkitBrowser) {
-                document.getElementById(_iframeId).contentWindow.Start(_pingUrl, setProgressIndicator);
+            if (isWebkitBrowser) {
+                document.getElementById(iframeId).contentWindow.Start(pingUrl, setProgressIndicator);
             }
             else {
                 setTimeout(getProgress, 100);
@@ -47,7 +47,7 @@
         $.ajax({
             type: 'GET',
             dataType: 'json',
-            url: _pingUrl,
+            url: pingUrl,
             success: onGetProgressSuccess,
             error: onGetProgressError
         });
@@ -62,7 +62,7 @@
         
         setProgressIndicator(percent, result.FileName);
         if (percent < 100) {
-            setTimeout(getProgress, _pollingInterval);
+            setTimeout(getProgress, pollingInterval);
         }
     }
 
@@ -80,19 +80,19 @@
         }
     }
 
-    function constructIframe() {
-        var iframe = document.getElementById(_iframeId);
+    function constructIframe(jQueryUrl) {
+        var iframe = document.getElementById(iframeId);
         if (iframe) {
             return;
         }
 
         iframe = document.createElement('iframe');
-        iframe.setAttribute('id', _iframeId);
+        iframe.setAttribute('id', iframeId);
         iframe.setAttribute('style', 'display: none; visibility: hidden;');
 
         $(iframe).load(function () {
             var scriptRef = document.createElement('script');
-            scriptRef.setAttribute("src", "http://ajax.aspnetcdn.com/ajax/jquery/jquery-1.4.4.min.js");
+            scriptRef.setAttribute("src", jQueryUrl);
             scriptRef.setAttribute("type", "text/javascript");
             iframe.contentDocument.body.appendChild(scriptRef);
 

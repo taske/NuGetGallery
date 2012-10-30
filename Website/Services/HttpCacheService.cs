@@ -27,7 +27,6 @@ namespace NuGetGallery
                 key, item, dependencies: null, absoluteExpiration: Cache.NoAbsoluteExpiration, slidingExpiration: timeout);
         }
 
-
         public void RemoveItem(string key)
         {
             if (HttpContext.Current == null)

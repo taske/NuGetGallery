@@ -1,82 +1,100 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Web;
 using Ninject;
+using NuGetGallery.Helpers;
 
 namespace NuGetGallery.FileAsyncUpload
 {
     public class AsyncFileUploadModule : IHttpModule
     {
-        private IUploadFileService _uploadFileService;
-
         public void Dispose()
         {
         }
 
         public void Init(HttpApplication application)
         {
-            _uploadFileService = Container.Kernel.Get<IUploadFileService>();
-            Debug.Assert(_uploadFileService != null);
+            var uploadFileService = Container.Kernel.Get<IUploadFileService>();
 
-            if (_uploadFileService != null)
-            {
-                application.PostAuthenticateRequest += PostAuthorizeRequest;
-            }
+            application.AddOnPostAuthorizeRequestAsync(
+                BeginPostAuthorizeRequest,
+                EndPostAuthorizeRequest,
+                uploadFileService);
         }
 
-        private void PostAuthorizeRequest(object sender, EventArgs e)
+        private IAsyncResult BeginPostAuthorizeRequest(object sender, EventArgs e, AsyncCallback cb, object extraData)
         {
-            var app = sender as HttpApplication;
+            var application = (HttpApplication)sender;
+            var uploadFileServie = (IUploadFileService)extraData;
 
-            if (!app.Context.User.Identity.IsAuthenticated)
+            return ReadUploadedFileStream(application.Context, uploadFileServie).ToApm(cb, extraData);
+        }
+
+        private void EndPostAuthorizeRequest(IAsyncResult ar)
+        {
+            ((Task<int>)ar).Wait();
+        }
+
+        private Task<int> ReadUploadedFileStream(HttpContext context, IUploadFileService uploadFileService)
+        {
+            if (!IsAsyncUploadRequest(context))
             {
-                return;
+                return Task.FromResult(0);
             }
 
-            if (!IsAsyncUploadRequest(app.Context))
+            if (!context.User.Identity.IsAuthenticated)
             {
-                return;
+                return Task.FromResult(0);
             }
 
-            var username = app.Context.User.Identity.Name;
+            var username = context.User.Identity.Name;
             if (String.IsNullOrEmpty(username))
             {
-                return;
+                return Task.FromResult(0);
             }
 
-            HttpRequest request = app.Context.Request;
+            HttpRequest request = context.Request;
             string contentType = request.ContentType;
             int boundaryIndex = contentType.IndexOf("boundary=", StringComparison.OrdinalIgnoreCase);
             string boundary = "--" + contentType.Substring(boundaryIndex + 9);
             var requestParser = new FileUploadRequestParser(boundary, request.ContentEncoding);
 
             var progress = new AsyncFileUploadProgressDetails(request.ContentLength, 0, String.Empty);
-            _uploadFileService.SetProgressDetails(username, progress);
+            uploadFileService.SetProgressDetails(username, progress);
 
             if (request.ReadEntityBodyMode != ReadEntityBodyMode.None)
             {
-                return;
+                return Task.FromResult(0);
             }
 
             Stream uploadStream = request.GetBufferedInputStream();
             Debug.Assert(uploadStream != null);
 
-            ReadStream(uploadStream, username, progress, requestParser);
+            return ReadStream(
+                context, 
+                uploadStream, 
+                username, 
+                progress, 
+                requestParser, 
+                uploadFileService);
         }
 
-        private void ReadStream(
+        private async Task<int> ReadStream(
+            HttpContext context,
             Stream stream, 
             string userKey,
             AsyncFileUploadProgressDetails progress, 
-            FileUploadRequestParser parser)
+            FileUploadRequestParser parser,
+            IUploadFileService uploadFileService)
         {
             const int bufferSize = 1024 * 4; // in bytes
 
             var buffer = new byte[bufferSize];
             while (progress.BytesRemaining > 0)
             {
-                int bytesRead = stream.Read(buffer, 0, Math.Min(progress.BytesRemaining, bufferSize));
+                int bytesRead = await stream.ReadAsync(buffer, 0, Math.Min(progress.BytesRemaining, bufferSize));
                 int newBytesRead = bytesRead == 0
                                     ? progress.TotalBytes
                                     : (progress.BytesRead + bytesRead);
@@ -89,14 +107,23 @@ namespace NuGetGallery.FileAsyncUpload
                     newFileName = parser.CurrentFileName;
                 }
 
+                // After the 'await' call, this code may execute on a worker's thread.
+                // in which case, an HttpContext may not be available.
+                if (HttpContext.Current == null)
+                {
+                    HttpContext.Current = context;
+                }
+                
                 progress = new AsyncFileUploadProgressDetails(progress.TotalBytes, newBytesRead, newFileName);
-                _uploadFileService.SetProgressDetails(userKey, progress);
+                uploadFileService.SetProgressDetails(userKey, progress);
 
 #if DEBUG
                 // for demo purpose only
-                System.Threading.Thread.Sleep(500);
+                System.Threading.Thread.Sleep(300);
 #endif
             }
+
+            return 0;
         }
 
         private static bool IsAsyncUploadRequest(HttpContext context)
