@@ -490,7 +490,7 @@ namespace NuGetGallery
                     nugetPackage.Object,
                     currentUser);
 
-                packageFileSvc.Verify(x => x.SavePackageFile(package, nugetPackage.Object.GetStream()));
+                packageFileSvc.Verify(x => x.SavePackageFileAsync(package, nugetPackage.Object.GetStream()));
                 Assert.Equal(8, package.PackageFileSize);
             }
 
@@ -915,7 +915,7 @@ namespace NuGetGallery
 
                 service.DeletePackage("theId", "1.0.42");
 
-                packageFileSvc.Verify(x => x.DeletePackageFile("theId", "1.0.42"));
+                packageFileSvc.Verify(x => x.DeletePackageFileAsync("theId", "1.0.42"));
             }
 
             [Fact]

@@ -169,7 +169,7 @@ namespace NuGetGallery
                 packageSvc.Setup(p => p.CreatePackage(nuGetPackage.Object, It.IsAny<User>())).Returns(new Package { IsLatestStable = true });
                 var userSvc = new Mock<IUserService>();
                 var nugetExeDownloader = new Mock<INuGetExeDownloaderService>(MockBehavior.Strict);
-                nugetExeDownloader.Setup(s => s.UpdateExecutable(nuGetPackage.Object)).Verifiable();
+                nugetExeDownloader.Setup(s => s.UpdateExecutableAsync(nuGetPackage.Object)).Verifiable();
                 var matchingUser = new User();
                 userSvc.Setup(x => x.FindByApiKey(It.IsAny<Guid>())).Returns(matchingUser);
                 var controller = CreateController(
@@ -203,7 +203,7 @@ namespace NuGetGallery
                 controller.CreatePackagePut(Guid.NewGuid().ToString());
 
                 // Assert
-                nugetExeDownloader.Verify(s => s.UpdateExecutable(It.IsAny<IPackage>()), Times.Never());
+                nugetExeDownloader.Verify(s => s.UpdateExecutableAsync(It.IsAny<IPackage>()), Times.Never());
             }
         }
 
@@ -357,7 +357,7 @@ namespace NuGetGallery
                 packageSvc.Setup(x => x.AddDownloadStatistics(package, "Foo", "Qux")).Verifiable();
 
                 var packageFileSvc = new Mock<IPackageFileService>(MockBehavior.Strict);
-                packageFileSvc.Setup(s => s.CreateDownloadPackageActionResult(package)).Returns(actionResult).Verifiable();
+                packageFileSvc.Setup(s => s.CreateDownloadPackageActionResultAsync(package)).Returns(actionResult).Verifiable();
                 var userSvc = new Mock<IUserService>(MockBehavior.Strict);
                 userSvc.Setup(x => x.FindByApiKey(guid)).Returns(new User());
 
@@ -392,7 +392,7 @@ namespace NuGetGallery
                 packageSvc.Setup(x => x.AddDownloadStatistics(package, "Foo", "Qux")).Verifiable();
 
                 var packageFileSvc = new Mock<IPackageFileService>(MockBehavior.Strict);
-                packageFileSvc.Setup(s => s.CreateDownloadPackageActionResult(package)).Returns(actionResult).Verifiable();
+                packageFileSvc.Setup(s => s.CreateDownloadPackageActionResultAsync(package)).Returns(actionResult).Verifiable();
                 var userSvc = new Mock<IUserService>(MockBehavior.Strict);
                 userSvc.Setup(x => x.FindByApiKey(guid)).Returns(new User());
 
