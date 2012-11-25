@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using Moq;
 using Xunit;
 
@@ -73,7 +74,7 @@ namespace NuGetGallery
 
                 service.GetUploadFileAsync(1);
 
-                fakeFileStorageService.Verify(x => x.GetFile(Constants.UploadsFolderName, It.IsAny<string>()));
+                fakeFileStorageService.Verify(x => x.GetFileAsync(Constants.UploadsFolderName, It.IsAny<string>()));
             }
 
             [Fact]
@@ -85,7 +86,7 @@ namespace NuGetGallery
 
                 service.GetUploadFileAsync(1);
 
-                fakeFileStorageService.Verify(x => x.GetFile(It.IsAny<string>(), expectedFileName));
+                fakeFileStorageService.Verify(x => x.GetFileAsync(It.IsAny<string>(), expectedFileName));
             }
 
             [Fact]
@@ -94,7 +95,8 @@ namespace NuGetGallery
                 var expectedFileName = String.Format(Constants.UploadFileNameTemplate, 1, Constants.NuGetPackageFileExtension);
                 var fakeFileStorageService = new Mock<IFileStorageService>();
                 var fakeFileStream = new MemoryStream();
-                fakeFileStorageService.Setup(x => x.GetFile(Constants.UploadsFolderName, expectedFileName)).Returns(fakeFileStream);
+                fakeFileStorageService.Setup(x => x.GetFileAsync(Constants.UploadsFolderName, expectedFileName))
+                                      .Returns(Task.FromResult<Stream>(fakeFileStream));
                 var service = CreateService(fakeFileStorageService: fakeFileStorageService);
 
                 var fileStream = service.GetUploadFileAsync(1);
